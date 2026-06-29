@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BasuraCero MVD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: #f0f2f0; color: #1a1f1a; }
+  :root {
+    --green:       #1a7a4a;
+    --green-light: #e6f4ed;
+    --amber:       #d97706;
+    --amber-light: #fef3c7;
+    --red:         #dc2626;
+    --red-light:   #fee2e2;
+    --blue:        #1d4ed8;
+    --blue-light:  #dbeafe;
+    --ink:         #0f1a0f;
+    --ink-mid:     #3d4f3d;
+    --ink-faint:   #7a8c7a;
+    --surface:     #ffffff;
+    --bg:          #f0f2f0;
+    --border:      #dde3dd;
+    --radius-md:   10px;
+    --radius-lg:   16px;
+    --shadow-sm:   0 1px 3px rgba(0,0,0,.07);
+    --shadow-md:   0 4px 12px rgba(0,0,0,.09);
+  }
+  #app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--surface); border-bottom: 1.5px solid var(--border); position: sticky; top: 0; z-index: 900; box-shadow: var(--shadow-sm); }
+  .header-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+  .brand-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .brand-name { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.15rem; color: var(--ink); letter-spacing: -0.3px; line-height: 1; }
+  .brand-sub { font-size: 0.68rem; color: var(--ink-faint); font-weight: 500; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+  .nav { display: flex; gap: 4px; }
+  .nav-btn { display: flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: var(--radius-md); font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 0.875rem; color: var(--ink-mid); background: transparent; border: none; cursor: pointer; transition: all 0.15s ease; }
+  .nav-btn:hover { background: var(--green-light); color: var(--green); }
+  .nav-btn.active { background: var(--green); color: #fff; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.92); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+  .loading-overlay.hidden { display: none; }
+  .spinner { width: 44px; height: 44px; border: 4px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; color: var(--ink); }
+  .loading-sub { font-size: 0.82rem; color: var(--ink-faint); }
+
+  /* DATA SOURCE BANNER */
+  .data-banner { background: var(--green-light); border-bottom: 1.5px solid rgba(26,122,74,0.2); padding: 8px 24px; display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; color: var(--green); font-weight: 600; }
+  .data-banner.error { background: var(--red-light); border-color: rgba(220,38,38,0.2); color: var(--red); }
+  .data-banner span { font-weight: 400; color: var(--ink-faint); }
+
+  /* MAP VIEW */
+  .view-map { display: flex; height: calc(100vh - 64px - 37px - 52px); }
+  .map-sidebar { width: 300px; flex-shrink: 0; background: var(--surface); border-right: 1.5px solid var(--border); overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+  .sidebar-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; color: var(--ink); }
+  .sidebar-subtitle { font-size: 0.8rem; color: var(--ink-faint); margin-top: 2px; }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-box { background: var(--bg); border-radius: var(--radius-md); border: 1.5px solid var(--border); padding: 12px; text-align: center; }
+  .stat-box.green { border-color: var(--green); background: var(--green-light); }
+  .stat-box.amber { border-color: var(--amber); background: var(--amber-light); }
+  .stat-box.red   { border-color: var(--red);   background: var(--red-light); }
+  .stat-num { font-family: 'DM Mono', monospace; font-size: 1.5rem; font-weight: 500; color: var(--ink); line-height: 1; }
+  .stat-box.green .stat-num { color: var(--green); }
+  .stat-box.amber .stat-num { color: var(--amber); }
+  .stat-box.red   .stat-num { color: var(--red); }
+  .stat-lbl { font-size: 0.7rem; color: var(--ink-faint); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .divider { border: none; border-top: 1.5px solid var(--border); }
+  .filter-title { font-weight: 600; font-size: 0.85rem; color: var(--ink); margin-bottom: 8px; }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 5px 12px; border-radius: 99px; font-size: 0.78rem; font-weight: 600; border: 1.5px solid var(--border); background: var(--surface); color: var(--ink-mid); cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: var(--green); color: var(--green); }
+  .chip.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .chip.ch-red.active   { background: var(--red);   border-color: var(--red); }
+  .chip.ch-amber.active { background: var(--amber); border-color: var(--amber); }
+  .legend-list { display: flex; flex-direction: column; gap: 8px; }
+  .legend-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.8rem; color: var(--ink-mid); line-height: 1.4; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+  .map-wrap { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; }
+
+  /* POPUP */
+  .popup-box { font-family: 'DM Sans', sans-serif; min-width: 220px; }
+  .popup-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1.5px solid var(--border); }
+  .popup-circuit { font-family: 'DM Mono', monospace; font-size: 0.78rem; color: var(--ink-faint); }
+  .pill { padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+  .pill-green { background: var(--green-light); color: var(--green); }
+  .pill-amber { background: var(--amber-light); color: var(--amber); }
+  .pill-red   { background: var(--red-light);   color: var(--red); }
+  .popup-dias { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+  .popup-dias.ok     { background: var(--green-light); }
+  .popup-dias.warn   { background: var(--amber-light); }
+  .popup-dias.crit   { background: var(--red-light); }
+  .popup-dias-num { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; line-height: 1; }
+  .popup-dias.ok   .popup-dias-num { color: var(--green); }
+  .popup-dias.warn .popup-dias-num { color: var(--amber); }
+  .popup-dias.crit .popup-dias-num { color: var(--red); }
+  .popup-dias-label { font-size: 0.78rem; color: var(--ink-mid); line-height: 1.3; }
+  .popup-row { font-size: 0.82rem; color: var(--ink-mid); margin-bottom: 4px; }
+  .popup-row strong { color: var(--ink); }
+  .popup-wpp { margin-top: 10px; padding: 8px 12px; background: #25d366; color: #fff; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-align: center; text-decoration: none; display: block; }
+
+  /* DASHBOARD */
+  .view-dashboard { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; flex-direction: column; gap: 28px; }
+  .dash-hero { text-align: center; }
+  .dash-hero h2 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.85rem; color: var(--ink); margin-bottom: 6px; }
+  .dash-hero p { color: var(--ink-faint); font-size: 0.95rem; }
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .kpi-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; display: flex; align-items: center; gap: 16px; transition: box-shadow 0.15s; }
+  .kpi-card:hover { box-shadow: var(--shadow-md); }
+  .kpi-icon { width: 48px; height: 48px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .kpi-icon.g { background: var(--green-light); }
+  .kpi-icon.a { background: var(--amber-light); }
+  .kpi-icon.r { background: var(--red-light); }
+  .kpi-val { font-family: 'DM Mono', monospace; font-size: 2rem; font-weight: 500; line-height: 1; color: var(--ink); }
+  .kpi-lbl { font-size: 0.78rem; color: var(--ink-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .chart-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--ink); margin-bottom: 4px; }
+  .chart-sub { font-size: 0.78rem; color: var(--ink-faint); margin-bottom: 18px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; }
+  .bar-label { width: 80px; font-size: 0.78rem; color: var(--ink-mid); font-weight: 600; flex-shrink: 0; text-align: right; }
+  .bar-track { flex: 1; height: 24px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; min-width: 40px; }
+  .bar-fill span { font-size: 0.72rem; font-family: 'DM Mono', monospace; font-weight: 500; color: #fff; }
+  .donut-wrap { display: flex; align-items: center; gap: 24px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+  .donut-legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .donut-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .donut-legend-label { color: var(--ink-mid); flex: 1; }
+  .donut-legend-val { font-family: 'DM Mono', monospace; font-weight: 500; color: var(--ink); }
+  .muni-table { width: 100%; border-collapse: collapse; }
+  .muni-table th { text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-faint); padding: 0 12px 10px; border-bottom: 1.5px solid var(--border); }
+  .muni-table td { padding: 10px 12px; font-size: 0.83rem; color: var(--ink-mid); border-bottom: 1px solid var(--border); }
+  .muni-table td:first-child { font-weight: 600; color: var(--ink); }
+  .muni-table tr:last-child td { border-bottom: none; }
+  .mini-bar { height: 6px; border-radius: 3px; }
+
+  /* REPORTAR */
+  .view-reportar { max-width: 680px; margin: 0 auto; padding: 48px 24px; display: flex; flex-direction: column; gap: 24px; }
+  .report-header { text-align: center; }
+  .report-header h2 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.85rem; color: var(--ink); margin-bottom: 8px; }
+  .report-header p { color: var(--ink-faint); font-size: 0.95rem; line-height: 1.6; }
+  .wpp-card { background: var(--surface); border: 2px solid #25d366; border-radius: var(--radius-lg); padding: 32px; text-align: center; }
+  .wpp-icon { font-size: 3.5rem; margin-bottom: 12px; }
+  .wpp-card h3 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.2rem; color: var(--ink); margin-bottom: 6px; }
+  .wpp-card p { font-size: 0.9rem; color: var(--ink-mid); margin-bottom: 24px; line-height: 1.6; }
+  .wpp-number { font-family: 'DM Mono', monospace; font-size: 1.8rem; font-weight: 500; color: #25d366; margin-bottom: 20px; display: block; }
+  .wpp-btn { display: inline-flex; align-items: center; gap: 10px; background: #25d366; color: #fff; padding: 14px 32px; border-radius: var(--radius-lg); font-weight: 700; font-size: 1rem; text-decoration: none; transition: background 0.15s; box-shadow: var(--shadow-md); }
+  .wpp-btn:hover { background: #1eb858; }
+  .wpp-hint { font-size: 0.78rem; color: var(--ink-faint); margin-top: 14px; }
+  .tips-card { background: var(--green-light); border: 1.5px solid rgba(26,122,74,0.2); border-radius: var(--radius-lg); padding: 24px; }
+  .tips-card h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--green); margin-bottom: 14px; }
+  .tips-list { display: flex; flex-direction: column; gap: 10px; }
+  .tip-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: var(--ink-mid); }
+  .tip-num { width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: #fff; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .channels-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
+  .channels-card h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--ink); margin-bottom: 14px; }
+  .channel-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  .channel-row:last-child { border-bottom: none; }
+  .channel-icon { font-size: 1.4rem; flex-shrink: 0; }
+  .channel-label { color: var(--ink-mid); flex: 1; }
+  .channel-val { font-weight: 600; color: var(--ink); }
+
+  /* FOOTER */
+  footer { background: var(--surface); border-top: 1.5px solid var(--border); padding: 14px 24px; text-align: center; font-size: 0.78rem; color: var(--ink-faint); }
+  footer a { color: var(--green); text-decoration: none; font-weight: 600; }
+
+  .hidden { display: none !important; }
+
+  /* WORST SITUATION WIDGET */
+  .worst-widget {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--red-light); border: 2px solid var(--red);
+    border-radius: var(--radius-lg); padding: 20px 24px; gap: 24px;
+  }
+  .worst-left { display: flex; align-items: center; gap: 16px; }
+  .worst-icon { font-size: 2.5rem; flex-shrink: 0; }
+  .worst-label { font-size: 0.78rem; color: var(--ink-mid); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .worst-num { font-family: 'DM Mono', monospace; font-size: 2.5rem; font-weight: 500; color: var(--red); line-height: 1; }
+  .worst-right { text-align: right; }
+  .worst-circuit { font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 500; color: var(--ink); margin: 4px 0; }
+  .worst-days { font-size: 1.4rem; font-weight: 800; font-family: 'Sora', sans-serif; color: var(--red); }
+
+  /* UNIFIED RANKING TABLE */
+  .chart-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .sort-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+  .sort-label { font-size: 0.75rem; color: var(--ink-faint); font-weight: 600; }
+  .sort-btn {
+    padding: 4px 10px; border-radius: 99px; font-size: 0.75rem; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--surface); color: var(--ink-mid);
+    cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .sort-btn:hover { border-color: var(--green); color: var(--green); }
+  .sort-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+  .unified-table { width: 100%; border-collapse: collapse; }
+  .unified-table th {
+    text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--ink-faint); padding: 0 10px 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  .unified-table th.right { text-align: right; }
+  .unified-tr {
+    cursor: pointer; transition: background 0.12s; border-bottom: 1px solid var(--border);
+  }
+  .unified-tr:last-child { border-bottom: none; }
+  .unified-tr:hover { background: rgba(26,122,74,0.03); }
+  .unified-tr.active-filter { background: rgba(26,122,74,0.07); }
+  .unified-tr td { padding: 12px 10px; font-size: 0.85rem; }
+
+  .medal-cell { display: flex; align-items: center; gap: 10px; }
+  .medal { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: #fff; flex-shrink: 0; }
+  .medal.gold   { background: #f59e0b; }
+  .medal.silver { background: #94a3b8; }
+  .medal.bronze { background: #cd7f32; }
+  .medal.plain  { background: var(--ink-faint); font-size: 0.7rem; }
+  .muni-name { font-weight: 700; color: var(--ink); font-family: 'Sora', sans-serif; }
+
+  .state-bar-cell { min-width: 160px; }
+  .state-bar-track { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; display: flex; }
+  .state-bar-seg { height: 100%; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  .num-cell { font-family: 'DM Mono', monospace; font-size: 0.82rem; text-align: right; }
+  .num-ok   { color: var(--green); font-weight: 700; }
+  .num-warn { color: var(--amber); font-weight: 700; }
+  .num-crit { color: var(--red);   font-weight: 700; }
+  .num-total { color: var(--ink-faint); }
+
+  .pct-cell { text-align: right; }
+  .pct-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 99px;
+    font-family: 'DM Mono', monospace; font-weight: 700; font-size: 0.82rem;
+  }
+  .pct-badge.good { background: var(--green-light); color: var(--green); }
+  .pct-badge.mid  { background: var(--amber-light); color: var(--amber); }
+  .pct-badge.bad  { background: var(--red-light);   color: var(--red); }
+
+  /* ENHANCED CHART ANIMATIONS */
+  .chart-card { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
+  .kpi-card   { opacity: 0; transform: translateY(12px); transition: opacity 0.4s ease, transform 0.4s ease; }
+  .worst-widget { opacity: 0; transform: translateY(12px); transition: opacity 0.4s ease, transform 0.4s ease; }
+  .chart-card.visible, .kpi-card.visible, .worst-widget.visible { opacity: 1; transform: translateY(0); }
+
+  /* Donut draw animation */
+  @keyframes drawArc { from { stroke-dashoffset: 0; } }
+  .donut-arc-animated { animation: drawArc 0.8s ease-out; }
+
+  /* KPI pulse on update */
+  @keyframes kpiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+  .kpi-val.pulse { animation: kpiPulse 0.3s ease; }
+  .stacked-muni-row {
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+    border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s;
+    border: 1.5px solid transparent;
+  }
+  .stacked-muni-row:hover { background: rgba(26,122,74,0.04); border-color: var(--border); }
+  .stacked-muni-row.active-filter { background: rgba(26,122,74,0.08); border-color: var(--green); }
+  .stacked-muni-label { width: 52px; font-size: 0.78rem; font-weight: 600; color: var(--ink-mid); flex-shrink: 0; }
+  .stacked-muni-track { flex: 1; height: 20px; background: var(--bg); border-radius: 4px; overflow: hidden; display: flex; }
+  .stacked-muni-seg { height: 100%; display: flex; align-items: center; justify-content: center; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
+  .stacked-muni-seg span { font-size: 0.68rem; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .s-ok   { background: #1a7a4a; }
+  .s-warn { background: #d97706; }
+  .s-crit { background: #dc2626; }
+  .stacked-muni-total { width: 40px; font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--ink-faint); text-align: right; flex-shrink: 0; }
+  .stacked-muni-legend { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .sml-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--ink-faint); }
+  .sml-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+  /* LAYER BUTTON */
+  .layer-btn {
+    width: 100%; display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-radius: var(--radius-md);
+    border: 2px solid var(--border); background: var(--surface);
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600;
+    color: var(--ink-mid); cursor: pointer; transition: all 0.15s; text-align: left;
+  }
+  .layer-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .layer-btn.active { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+  .layer-btn.loading { opacity: 0.7; cursor: wait; }
+  .layer-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .layer-status { margin-left: auto; font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--ink-faint); }
+  .search-box { position: relative; }
+  .search-input-wrap { display: flex; align-items: center; position: relative; }
+  .search-input-wrap input {
+    width: 100%; padding: 9px 34px 9px 12px;
+    border: 2px solid var(--border); border-radius: var(--radius-md);
+    font-family: 'DM Sans', sans-serif; font-size: 0.875rem;
+    color: var(--ink); background: var(--surface); transition: border-color 0.15s; outline: none;
+  }
+  .search-input-wrap input:focus { border-color: var(--green); }
+  .search-input-wrap input::placeholder { color: var(--ink-faint); }
+  .search-clear {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 0.85rem; padding: 2px 4px;
+  }
+  .search-clear:hover { color: var(--ink); }
+  .search-results {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+    z-index: 1000; max-height: 200px; overflow-y: auto;
+  }
+  .search-result-item {
+    padding: 10px 12px; font-size: 0.82rem; color: var(--ink-mid);
+    cursor: pointer; border-bottom: 1px solid var(--border); line-height: 1.4;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--green-light); color: var(--green); }
+  .search-result-item strong { color: var(--ink); display: block; font-size: 0.85rem; }
+
+  /* GEOLOCATION */
+  .geo-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 10px; border-radius: var(--radius-md);
+    border: 2px solid var(--green); background: var(--green-light);
+    color: var(--green); font-weight: 600; font-size: 0.875rem;
+    cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .geo-btn:hover { background: var(--green); color: #fff; }
+  .geo-btn.located { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+
+  /* NEAREST */
+  .nearest-panel { background: var(--bg); border-radius: var(--radius-md); border: 1.5px solid var(--border); overflow: hidden; }
+  .nearest-title {
+    padding: 8px 12px; font-weight: 700; font-size: 0.78rem; color: var(--ink);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .nearest-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s;
+  }
+  .nearest-item:last-child { border-bottom: none; }
+  .nearest-item:hover { background: rgba(26,122,74,0.05); }
+  .nearest-rank { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff; }
+  .nearest-info { flex: 1; min-width: 0; }
+  .nearest-circ { font-family: 'DM Mono', monospace; font-size: 0.73rem; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nearest-dist { font-size: 0.78rem; font-weight: 600; color: var(--ink-mid); }
+  .nearest-dias { font-family: 'DM Mono', monospace; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+
+  /* DASHBOARD FILTER BAR */
+  .dash-filter-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--blue-light); border: 1.5px solid var(--blue);
+    border-radius: var(--radius-md); padding: 10px 16px; font-size: 0.85rem;
+  }
+  .dash-filter-label { font-weight: 600; color: var(--blue); }
+  .dash-filter-chip {
+    font-family: 'Sora', sans-serif; font-weight: 700; color: var(--ink);
+  }
+  .dash-filter-clear {
+    margin-left: auto; background: none; border: none;
+    color: var(--blue); font-weight: 600; font-size: 0.82rem; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .dash-filter-clear:hover { text-decoration: underline; }
+
+  /* STACKED BAR */
+  .stacked-bar-container { display: flex; flex-direction: column; gap: 16px; }
+  .stacked-bar-track {
+    height: 48px; border-radius: var(--radius-md); overflow: hidden;
+    display: flex; width: 100%;
+  }
+  .stacked-bar-seg {
+    height: 100%; transition: width 1s cubic-bezier(0.4,0,0.2,1);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 0.78rem; font-weight: 700;
+    color: #fff; min-width: 0; overflow: hidden;
+  }
+  .stacked-bar-seg span { white-space: nowrap; }
+  .stacked-legend { display: flex; gap: 20px; flex-wrap: wrap; }
+  .stacked-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .stacked-legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .stacked-legend-val { font-family: 'DM Mono', monospace; font-weight: 700; color: var(--ink); }
+  .stacked-legend-lbl { color: var(--ink-faint); }
+
+  /* SCROLL REVEAL ANIMATIONS */
+  .reveal {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+  .reveal-delay-4 { transition-delay: 0.4s; }
+
+  /* BAR ANIMATION */
+  .bar-fill { width: 0 !important; }
+  .bar-fill.animated { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  /* COUNTER ANIMATION */
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .kpi-val.counting { animation: countUp 0.4s ease forwards; }
+
+  /* RANKING ITEM CLICKABLE */
+  .ranking-item { cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+  .ranking-item:hover { box-shadow: var(--shadow-md); border-color: var(--green); }
+  .ranking-item.active-filter { border-color: var(--blue); background: var(--blue-light); }
+  .ranking-list { display: flex; flex-direction: column; gap: 10px; }
+  .ranking-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    background: var(--bg); border-radius: var(--radius-md); border: 1.5px solid var(--border);
+  }
+  .ranking-pos {
+    width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.85rem; color: #fff;
+  }
+  .ranking-pos.gold   { background: #f59e0b; }
+  .ranking-pos.silver { background: #94a3b8; }
+  .ranking-pos.bronze { background: #cd7f32; }
+  .ranking-pos.normal { background: var(--ink-faint); }
+  .ranking-muni { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--ink); }
+  .ranking-detail { font-size: 0.75rem; color: var(--ink-faint); margin-top: 1px; }
+  .ranking-bar-wrap { flex: 1; }
+  .ranking-bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .ranking-bar-fill { height: 100%; border-radius: 4px; }
+  .ranking-pct { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; min-width: 42px; text-align: right; }
+
+  @media (max-width: 768px) {
+    .header-inner { height: auto; padding: 10px 16px; flex-wrap: wrap; }
+    .nav { width: 100%; justify-content: center; }
+    .nav-btn span { display: none; }
+    .view-map { flex-direction: column; height: auto; }
+    .map-sidebar { width: 100%; max-height: 320px; }
+    .map-wrap { height: 55vh; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.full { grid-column: 1; }
+    .data-banner { flex-direction: column; gap: 4px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOADING -->
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Cargando datos en tiempo real</div>
+    <div class="loading-sub">Portal de Datos Abiertos · Intendencia de Montevideo</div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <a class="brand" href="#">
+        <div class="brand-icon">🗑️</div>
+        <div>
+          <div class="brand-name">BasuraCero MVD</div>
+          <div class="brand-sub">Datos abiertos · Montevideo</div>
+        </div>
+      </a>
+      <nav class="nav">
+        <button class="nav-btn active" onclick="showView('map')" id="btn-map">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6-10l6 3m0 10l5.447-2.724A1 1 0 0021 16.382V5.618a1 1 0 00-.553-.894L15 2m0 18V5"/></svg>
+          <span>Mapa</span>
+        </button>
+        <button class="nav-btn" onclick="showView('dashboard')" id="btn-dashboard">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-btn" onclick="showView('reportar')" id="btn-reportar">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span>Reportar</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- DATA BANNER -->
+  <div class="data-banner" id="data-banner">
+    <div id="banner-text">Cargando...</div>
+    <span id="banner-time"></span>
+  </div>
+
+  <main>
+    <!-- MAPA -->
+    <section id="view-map" class="view-map">
+      <aside class="map-sidebar">
+        <div>
+          <div class="sidebar-title">Contenedores en Montevideo</div>
+          <div class="sidebar-subtitle" id="sidebar-sub">Cargando datos reales...</div>
+        </div>
+
+        <!-- BUSCADOR DE DIRECCIÓN -->
+        <div class="search-box">
+          <div class="search-input-wrap">
+            <input type="text" id="search-input" placeholder="Buscar dirección..." autocomplete="off" oninput="onSearchInput()" onkeydown="if(event.key==='Enter') doSearch()" />
+            <button class="search-clear hidden" id="search-clear" onclick="clearSearch()">✕</button>
+          </div>
+          <div class="search-results hidden" id="search-results"></div>
+        </div>
+
+        <!-- GEOLOCALIZACIÓN -->
+        <button class="geo-btn" id="geo-btn" onclick="locateMe()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="9" stroke-dasharray="4 2"/></svg>
+          <span id="geo-label">Mostrar mi ubicación</span>
+        </button>
+        <div class="stat-row">
+          <div class="stat-box">
+            <div class="stat-num" id="cnt-total">—</div>
+            <div class="stat-lbl">Total</div>
+          </div>
+          <div class="stat-box green">
+            <div class="stat-num" id="cnt-ok">—</div>
+            <div class="stat-lbl">0-1 días</div>
+          </div>
+          <div class="stat-box amber">
+            <div class="stat-num" id="cnt-warn">—</div>
+            <div class="stat-lbl">2 días</div>
+          </div>
+          <div class="stat-box red">
+            <div class="stat-num" id="cnt-crit">—</div>
+            <div class="stat-lbl">3+ días</div>
+          </div>
+        </div>
+        <hr class="divider" />
+        <div>
+          <div class="filter-title">Estado de recolección</div>
+          <div class="filter-chips" id="status-chips">
+            <button class="chip active" onclick="filterStatus('all',this)">Todos</button>
+            <button class="chip" onclick="filterStatus('ok',this)">Al día</button>
+            <button class="chip ch-amber" onclick="filterStatus('warn',this)">1-2 días</button>
+            <button class="chip ch-red" onclick="filterStatus('crit',this)">3+ días</button>
+          </div>
+        </div>
+        <hr class="divider" />
+        <div>
+          <div class="filter-title">Municipio</div>
+          <div class="filter-chips" id="muni-chips">
+            <button class="chip active" onclick="filterMuni('Todos',this)">Todos</button>
+          </div>
+        </div>
+        <hr class="divider" />
+        <div class="legend-list">
+          <div class="filter-title">Leyenda</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--green)"></div><span>Normal — levantado hace 0 o 1 día</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--amber)"></div><span>Atención — 2 días sin levantar</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--red)"></div><span>Crítico — 3 o más días sin levantar</span></div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--blue)"></div><span>Reciclaje seco</span></div>
+        </div>
+        <hr class="divider" />
+        <div>
+          <div class="filter-title">Capas</div>
+          <button class="layer-btn" id="recycle-btn" onclick="toggleRecycleLayer()">
+            <span class="layer-dot" style="background:var(--blue)"></span>
+            <span id="recycle-label">Mostrar reciclaje seco</span>
+            <span class="layer-status" id="recycle-status">—</span>
+          </button>
+        </div>
+      </aside>
+      <div class="map-wrap">
+        <div id="map"></div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view-dashboard hidden">
+      <div class="dash-hero">
+        <h2>Montevideo en tiempo real</h2>
+        <p id="dash-subtitle">Estado de recolección de contenedores domiciliarios · Actualizado hoy</p>
+      </div>
+      <div class="dash-filter-bar" id="dash-filter-bar" style="display:none">
+        <span class="dash-filter-label">Filtrando:</span>
+        <span class="dash-filter-chip" id="dash-filter-chip"></span>
+        <button class="dash-filter-clear" onclick="clearDashFilter()">✕ Ver todos los municipios</button>
+      </div>
+
+      <!-- WIDGET PEOR SITUACIÓN -->
+      <div class="worst-widget" id="worst-widget">
+        <div class="worst-left">
+          <div class="worst-icon">🚨</div>
+          <div>
+            <div class="worst-label">Contenedores con 3+ días sin recolección</div>
+            <div class="worst-num" id="worst-count">—</div>
+          </div>
+        </div>
+        <div class="worst-right">
+          <div class="worst-label">El más crítico hoy</div>
+          <div class="worst-circuit" id="worst-circuit">—</div>
+          <div class="worst-days" id="worst-days">—</div>
+        </div>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-icon g">🗑️</div><div><div class="kpi-val" id="d-total">—</div><div class="kpi-lbl">Contenedores totales</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon g">✅</div><div><div class="kpi-val" id="d-ok">—</div><div class="kpi-lbl">Normal (0-1 días)</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon a">⚠️</div><div><div class="kpi-val" id="d-warn">—</div><div class="kpi-lbl">Atención (2 días)</div></div></div>
+        <div class="kpi-card"><div class="kpi-icon r">🚨</div><div><div class="kpi-val" id="d-crit">—</div><div class="kpi-lbl">Crítico (3+ días)</div></div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">Estado por municipio</div>
+          <div class="chart-sub">Proporción de contenedores al día vs con retraso · click para filtrar</div>
+          <div class="bar-chart" id="bar-muni"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Distribución global</div>
+          <div class="chart-sub">Estado de los <span id="donut-total-label">—</span> contenedores hoy</div>
+          <div class="donut-wrap">
+            <svg id="donut-svg" width="150" height="150" viewBox="0 0 150 150"></svg>
+            <div class="donut-legend" id="donut-legend"></div>
+          </div>
+        </div>
+        <div class="chart-card full">
+          <div class="chart-card-header">
+            <div>
+              <div class="chart-title">Ranking por municipio</div>
+              <div class="chart-sub">Al día: 0–1 días · Atención: 2 días · Crítico: 3+ días · click para filtrar, click de nuevo para quitar</div>
+            </div>
+            <div class="sort-controls">
+              <span class="sort-label">Ordenar por:</span>
+              <button class="sort-btn active" id="sort-pct"   onclick="setSortMode('pct')"   >% cumplimiento</button>
+              <button class="sort-btn"        id="sort-crit"  onclick="setSortMode('crit')"  >más críticos</button>
+              <button class="sort-btn"        id="sort-total" onclick="setSortMode('total')" >total</button>
+            </div>
+          </div>
+          <div id="unified-ranking"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTAR -->
+    <section id="view-reportar" class="view-reportar hidden">
+      <div class="report-header">
+        <h2>¿Contenedor desbordado o basura en la vereda?</h2>
+        <p>La Intendencia de Montevideo tiene un canal oficial de WhatsApp. Mandás una foto y la ubicación y ellos se encargan.</p>
+      </div>
+      <div class="wpp-card">
+        <div class="wpp-icon">💬</div>
+        <h3>Canal oficial de la Intendencia de Montevideo</h3>
+        <p>Enviá una foto y la ubicación exacta del problema.</p>
+        <span class="wpp-number">092 250 260</span>
+        <a class="wpp-btn" href="https://wa.me/59892250260" target="_blank" rel="noopener noreferrer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.135.561 4.14 1.54 5.876L.057 23.882a.5.5 0 00.61.61l6.079-1.488A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.986 0-3.84-.54-5.432-1.48l-.39-.23-4.03.986.998-3.944-.252-.406A9.956 9.956 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>
+          Abrir WhatsApp
+        </a>
+        <div class="wpp-hint">Se va a abrir WhatsApp en tu celular o computadora</div>
+      </div>
+      <div class="tips-card">
+        <h4>📋 Qué mandar</h4>
+        <div class="tips-list">
+          <div class="tip-row"><div class="tip-num">1</div><span>Una foto del problema — sacala directo desde WhatsApp</span></div>
+          <div class="tip-row"><div class="tip-num">2</div><span>Tu ubicación o la dirección exacta: calle y número, o calle y esquina</span></div>
+        </div>
+      </div>
+      <div class="channels-card">
+        <h4>Otros canales de contacto con la Intendencia</h4>
+        <div class="channel-row"><div class="channel-icon">📞</div><div class="channel-label">Teléfono (División Limpieza)</div><div class="channel-val">1950 int. 6100</div></div>
+        <div class="channel-row"><div class="channel-icon">🌐</div><div class="channel-label">Portal web</div><div class="channel-val"><a href="https://montevideo.gub.uy" target="_blank" rel="noopener" style="color:var(--green)">montevideo.gub.uy</a></div></div>
+        <div class="channel-row"><div class="channel-icon">🏢</div><div class="channel-label">Centro Comunal Zonal de tu barrio</div><div class="channel-val"><a href="https://montevideo.gub.uy/ciudad/gobierno/ccz" target="_blank" rel="noopener" style="color:var(--green)">Ver CCZ →</a></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    BasuraCero MVD · Iniciativa ciudadana independiente ·
+    Datos: <a href="https://ckan.montevideo.gub.uy" target="_blank" rel="noopener">Portal de Datos Abiertos de Montevideo</a> ·
+    Geocodificación: <a href="https://nominatim.openstreetmap.org" target="_blank" rel="noopener">Nominatim / OpenStreetMap</a>
+  </footer>
+</div>
+
+<script>
+// ══ CONFIG ══
+var CKAN_URL = 'https://ckan-data.montevideo.gub.uy/vistas/levantes-contenedores?format=csv';
+
+// ══ STATE ══
+var allData = [];
+var map, markers = [];
+var currentStatus = 'all';
+var currentMuni = 'Todos';
+var municipios = [];
+var usingRealData = false;
+
+// ══ HELPERS ══
+function getStatus(dias) {
+  if (dias <= 1) return 'ok';   // 0-1 días: normal
+  if (dias <= 2) return 'warn'; // 2 días: atención
+  return 'crit';                // 3+ días: crítico
+}
+
+function getColor(dias) {
+  if (dias <= 1) return '#1a7a4a';
+  if (dias <= 2) return '#d97706';
+  return '#dc2626';
+}
+
+function getMunicipality(cod) {
+  // "A_DU_RM_CL_105" → "A", "CH_..." → "CH"
+  var parts = cod.split('_');
+  return parts[0] || '?';
+}
+
+function pillHtml(dias) {
+  if (dias === 0)  return '<span class="pill pill-green">Al día</span>';
+  if (dias <= 2)   return '<span class="pill pill-amber">' + dias + ' días</span>';
+  return '<span class="pill pill-red">' + dias + ' días</span>';
+}
+
+function diasClass(dias) {
+  if (dias === 0) return 'ok';
+  if (dias <= 2)  return 'warn';
+  return 'crit';
+}
+
+function makeCircleOptions(dias) {
+  return {
+    radius: 6,
+    fillColor: getColor(dias),
+    color: '#fff',
+    weight: 1.5,
+    opacity: 1,
+    fillOpacity: 0.9
+  };
+}
+
+function popupHtml(row, addr) {
+  var dias = parseInt(row.dias_sin_levantar) || 0;
+  var muni = getMunicipality(row.cod_recorrido);
+  var addrLine = addr
+    ? '<div class="popup-row"><strong>Dirección:</strong> ' + addr + '</div>'
+    : '<div class="popup-row popup-addr-loading" id="addr-' + row.posicion + '-' + muni + '"><strong>Dirección:</strong> <em style="color:var(--ink-faint)">cargando...</em></div>';
+  return '<div class="popup-box">'
+    + '<div class="popup-head">'
+    + '<span class="popup-circuit">Mun. ' + muni + ' · Circ. ' + row.cod_recorrido.split('_').pop() + '</span>'
+    + pillHtml(dias)
+    + '</div>'
+    + '<div class="popup-dias ' + diasClass(dias) + '">'
+    + '<div class="popup-dias-num">' + dias + '</div>'
+    + '<div class="popup-dias-label">días sin<br>levantar</div>'
+    + '</div>'
+    + addrLine
+    + '<div class="popup-row"><strong>Datos al:</strong> ' + row.fecha_datos + '</div>'
+    + '<a class="popup-wpp" href="https://wa.me/59892250260" target="_blank" rel="noopener">📢 Reportar → 092 250 260</a>'
+    + '</div>';
+}
+
+// ══ CSV PARSE ══
+function parseCSV(csvText) {
+  var result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  return result.data;
+}
+
+// ══ MAP ══
+var clusterGroup = null;
+
+function initMap() {
+  map = L.map('map', { preferCanvas: true }).setView([-34.9011, -56.1645], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
+  }).addTo(map);
+}
+
+function renderMarkers(data) {
+  // Limpiar cluster anterior
+  if (clusterGroup) { map.removeLayer(clusterGroup); }
+  markers = [];
+
+  clusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 50,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    iconCreateFunction: function(cluster) {
+      var children = cluster.getAllChildMarkers();
+      var total = children.length;
+      var ok   = children.filter(function(m) { return m._status === 'ok'; }).length;
+      var warn = children.filter(function(m) { return m._status === 'warn'; }).length;
+      var crit = children.filter(function(m) { return m._status === 'crit'; }).length;
+      var pctOk = ok / total;
+
+      // Color por umbral de proporción:
+      // ≥95% ok → verde (zona sana, los pocos rojos son ruido normal)
+      // 70-94% → amarillo (zona mixta, vale la pena ver)
+      // <70%   → rojo (zona problemática)
+      var ringColor, textColor;
+      if (pctOk >= 0.95)      { ringColor = '#1a7a4a'; textColor = '#fff'; }
+      else if (pctOk >= 0.70) { ringColor = '#d97706'; textColor = '#fff'; }
+      else                    { ringColor = '#dc2626'; textColor = '#fff'; }
+
+      // Mini anillo SVG que muestra proporción ok/warn/crit
+      var r = 20, cx = 22, cy = 22, stroke = 6;
+      var circ = 2 * Math.PI * r;
+      var aOk   = circ * ok / total;
+      var aWarn = circ * warn / total;
+      var aCrit = circ * crit / total;
+      var offOk   = circ * 0.25;
+      var offWarn = offOk - aOk;
+      var offCrit = offWarn - aWarn;
+      var count = cluster.getChildCount();
+      var fontSize = count >= 1000 ? '9' : count >= 100 ? '10' : '11';
+
+      var svg = '<svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="white" stroke="#e2e8f0" stroke-width="1"/>'
+        + (aOk > 0 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#1a7a4a" stroke-width="' + stroke + '" stroke-dasharray="' + aOk.toFixed(1) + ' ' + (circ - aOk).toFixed(1) + '" stroke-dashoffset="' + offOk.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' : '')
+        + (aWarn > 0 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#d97706" stroke-width="' + stroke + '" stroke-dasharray="' + aWarn.toFixed(1) + ' ' + (circ - aWarn).toFixed(1) + '" stroke-dashoffset="' + offWarn.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' : '')
+        + (aCrit > 0 ? '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#dc2626" stroke-width="' + stroke + '" stroke-dasharray="' + aCrit.toFixed(1) + ' ' + (circ - aCrit).toFixed(1) + '" stroke-dashoffset="' + offCrit.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')"/>' : '')
+        + '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" font-family="DM Mono,monospace" font-size="' + fontSize + '" font-weight="700" fill="#0f1a0f">' + count + '</text>'
+        + '</svg>';
+
+      return L.divIcon({
+        html: svg,
+        className: '',
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
+      });
+    }
+  });
+
+  data.forEach(function(row) {
+    var lat  = parseFloat(row.latitud);
+    var lng  = parseFloat(row.longitud);
+    var dias = parseInt(row.dias_sin_levantar) || 0;
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    var m = L.circleMarker([lat, lng], makeCircleOptions(dias))
+      .bindPopup(popupHtml(row), { maxWidth: 260 });
+    // Geocodificar dirección al abrir el popup (lazy, con cache)
+    m.on('popupopen', function() {
+      var key = lat.toFixed(4) + ',' + lng.toFixed(4);
+      if (geocodeCache[key]) {
+        this.getPopup().setContent(popupHtml(row, geocodeCache[key]));
+        return;
+      }
+      var self = this;
+      reverseGeocode(lat, lng, function(addr) {
+        self.getPopup().setContent(popupHtml(row, addr));
+      });
+    });
+    m._status = getStatus(dias);
+    m._muni   = getMunicipality(row.cod_recorrido);
+    m._dias   = dias;
+    markers.push(m);
+    clusterGroup.addLayer(m);
+  });
+
+  map.addLayer(clusterGroup);
+  updateCounts();
+  buildMuniChips();
+}
+
+function applyFilters() {
+  clusterGroup.clearLayers();
+  markers.forEach(function(m) {
+    var statusOk = currentStatus === 'all' || m._status === currentStatus;
+    var muniOk   = currentMuni === 'Todos' || m._muni === currentMuni;
+    if (statusOk && muniOk) clusterGroup.addLayer(m);
+  });
+  updateCounts();
+}
+
+function updateCounts() {
+  var visible = markers.filter(function(m) { return clusterGroup.hasLayer(m); });
+  var ok   = visible.filter(function(m) { return m._status === 'ok'; }).length;
+  var warn = visible.filter(function(m) { return m._status === 'warn'; }).length;
+  var crit = visible.filter(function(m) { return m._status === 'crit'; }).length;
+  document.getElementById('cnt-total').textContent = visible.length.toLocaleString('es-UY');
+  document.getElementById('cnt-ok').textContent    = ok.toLocaleString('es-UY');
+  document.getElementById('cnt-warn').textContent  = warn.toLocaleString('es-UY');
+  document.getElementById('cnt-crit').textContent  = crit.toLocaleString('es-UY');
+}
+
+function buildMuniChips() {
+  var munis = {};
+  markers.forEach(function(m) { munis[m._muni] = true; });
+  municipios = Object.keys(munis).sort();
+  var container = document.getElementById('muni-chips');
+  container.innerHTML = '<button class="chip active" onclick="filterMuni(\'Todos\',this)">Todos</button>';
+  municipios.forEach(function(muni) {
+    var btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.textContent = muni;
+    btn.onclick = function() { filterMuni(muni, this); };
+    container.appendChild(btn);
+  });
+}
+
+function filterStatus(status, btn) {
+  currentStatus = status;
+  document.querySelectorAll('#status-chips .chip').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function filterMuni(muni, btn) {
+  currentMuni = muni;
+  document.querySelectorAll('#muni-chips .chip').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  applyFilters();
+}
+
+// ══ DASHBOARD ══
+var dashFilter = null; // municipio activo como filtro
+
+function filterDataForDash() {
+  if (!dashFilter) return allData;
+  return allData.filter(function(r) { return getMunicipality(r.cod_recorrido) === dashFilter; });
+}
+
+function setDashFilter(muni) {
+  // Toggle: si ya está filtrado por ese municipio, limpia
+  dashFilter = (dashFilter === muni) ? null : muni;
+  var bar = document.getElementById('dash-filter-bar');
+  if (dashFilter) {
+    bar.style.display = 'flex';
+    document.getElementById('dash-filter-chip').textContent = 'Municipio ' + dashFilter;
+  } else {
+    bar.style.display = 'none';
+  }
+  buildDashboard();
+}
+
+function clearDashFilter() { setDashFilter(null); }
+
+function buildDashboard() {
+  var data   = filterDataForDash();
+  var total  = data.length;
+  if (total === 0) return;
+  var ok   = data.filter(function(r) { return parseInt(r.dias_sin_levantar) <= 1; }).length;
+  var warn = data.filter(function(r) { var d = parseInt(r.dias_sin_levantar); return d === 2; }).length;
+  var crit = data.filter(function(r) { return parseInt(r.dias_sin_levantar) >= 3; }).length;
+
+  // KPIs con animación
+  animateCount('d-total', total);
+  animateCount('d-ok',    ok);
+  animateCount('d-warn',  warn);
+  animateCount('d-crit',  crit);
+
+  // Widget peor situación
+  var critRows = data.filter(function(r) { return parseInt(r.dias_sin_levantar) >= 3; });
+  critRows.sort(function(a,b) { return parseInt(b.dias_sin_levantar) - parseInt(a.dias_sin_levantar); });
+  document.getElementById('worst-count').textContent = crit.toLocaleString('es-UY');
+  if (critRows.length > 0) {
+    var worst = critRows[0];
+    var worstDias = parseInt(worst.dias_sin_levantar);
+    var worstMuni = 'Municipio ' + getMunicipality(worst.cod_recorrido);
+    document.getElementById('worst-circuit').textContent = 'Buscando dirección...';
+    document.getElementById('worst-days').textContent = worstDias + ' días sin recolección · ' + worstMuni;
+    reverseGeocode(parseFloat(worst.latitud), parseFloat(worst.longitud), function(addr) {
+      document.getElementById('worst-circuit').textContent = addr;
+    });
+  }
+
+  // Agrupar por municipio
+  var byMuni = {};
+  data.forEach(function(r) {
+    var muni = getMunicipality(r.cod_recorrido);
+    if (!byMuni[muni]) byMuni[muni] = { total:0, ok:0, warn:0, crit:0 };
+    var d = parseInt(r.dias_sin_levantar) || 0;
+    byMuni[muni].total++;
+    if (d <= 1) byMuni[muni].ok++;
+    else if (d <= 2) byMuni[muni].warn++;
+    else byMuni[muni].crit++;
+  });
+  var muniArr = Object.keys(byMuni).sort().map(function(k) { return { name: k, data: byMuni[k] }; });
+  var maxTotal = Math.max.apply(null, muniArr.map(function(m) { return m.data.total; }));
+
+  // Barras apiladas por municipio (ok/warn/crit)
+  var barHtml = '';
+  muniArr.forEach(function(m) {
+    var t = m.data.total;
+    var pOk   = t > 0 ? (m.data.ok   / t * 100) : 0;
+    var pWarn = t > 0 ? (m.data.warn  / t * 100) : 0;
+    var pCrit = t > 0 ? (m.data.crit  / t * 100) : 0;
+    var isActive = dashFilter === m.name;
+    barHtml += '<div class="stacked-muni-row' + (isActive ? ' active-filter' : '') + '" onclick="setDashFilter(\'' + m.name + '\')" title="Click para filtrar · Click de nuevo para quitar filtro">'
+      + '<div class="stacked-muni-label">Mun. ' + m.name + '</div>'
+      + '<div class="stacked-muni-track">'
+      + (pOk   > 0 ? '<div class="stacked-muni-seg s-ok"   style="width:' + pOk.toFixed(1)   + '%"><span>' + (pOk > 10 ? pOk.toFixed(0) + '%' : '') + '</span></div>' : '')
+      + (pWarn > 0 ? '<div class="stacked-muni-seg s-warn" style="width:' + pWarn.toFixed(1) + '%"><span>' + (pWarn > 10 ? pWarn.toFixed(0) + '%' : '') + '</span></div>' : '')
+      + (pCrit > 0 ? '<div class="stacked-muni-seg s-crit" style="width:' + pCrit.toFixed(1) + '%"><span>' + (pCrit > 10 ? pCrit.toFixed(0) + '%' : '') + '</span></div>' : '')
+      + '</div>'
+      + '<div class="stacked-muni-total">' + t.toLocaleString('es-UY') + '</div>'
+      + '</div>';
+  });
+  // Leyenda una sola vez al final
+  barHtml += '<div class="stacked-muni-legend">'
+    + '<span class="sml-item"><span class="sml-dot" style="background:#1a7a4a"></span>Al día</span>'
+    + '<span class="sml-item"><span class="sml-dot" style="background:#d97706"></span>Atención</span>'
+    + '<span class="sml-item"><span class="sml-dot" style="background:#dc2626"></span>Crítico</span>'
+    + '</div>';
+  document.getElementById('bar-muni').innerHTML = barHtml;
+
+  // Donut
+  var pOkD   = (ok / total * 100).toFixed(1);
+  var pWarnD = (warn / total * 100).toFixed(1);
+  var pCritD = (crit / total * 100).toFixed(1);
+  var r = 55, cx = 75, cy = 75, stroke = 22;
+  var circ = 2 * Math.PI * r;
+  var dOk   = circ * ok / total;
+  var dWarn = circ * warn / total;
+  var dCrit = circ * crit / total;
+  var offOk   = circ * 0.25;
+  var offWarn = offOk - dOk;
+  var offCrit = offWarn - dWarn;
+  document.getElementById('donut-total-label').textContent = total.toLocaleString('es-UY');
+
+  // Donut con animación de arco
+  var r = 55, cx = 75, cy = 75, stroke = 22;
+  var circ = 2 * Math.PI * r;
+  var dOk   = circ * ok / total;
+  var dWarn = circ * warn / total;
+  var dCrit = circ * crit / total;
+  var offOk   = circ * 0.25;
+  var offWarn = offOk - dOk;
+  var offCrit = offWarn - dWarn;
+  document.getElementById('donut-svg').innerHTML =
+    '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#e5e7e5" stroke-width="' + stroke + '"/>'
+    + '<circle class="donut-arc-animated" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#1a7a4a" stroke-width="' + stroke + '" stroke-dasharray="' + dOk.toFixed(1) + ' ' + (circ-dOk).toFixed(1) + '" stroke-dashoffset="' + offOk.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')" style="animation-delay:0.1s"/>'
+    + '<circle class="donut-arc-animated" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#d97706" stroke-width="' + stroke + '" stroke-dasharray="' + dWarn.toFixed(1) + ' ' + (circ-dWarn).toFixed(1) + '" stroke-dashoffset="' + offWarn.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')" style="animation-delay:0.2s"/>'
+    + '<circle class="donut-arc-animated" cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="#dc2626" stroke-width="' + stroke + '" stroke-dasharray="' + dCrit.toFixed(1) + ' ' + (circ-dCrit).toFixed(1) + '" stroke-dashoffset="' + offCrit.toFixed(1) + '" transform="rotate(-90 ' + cx + ' ' + cy + ')" style="animation-delay:0.3s"/>'
+    + '<text x="' + cx + '" y="' + (cy-6) + '" text-anchor="middle" font-family="DM Mono,monospace" font-size="18" font-weight="700" fill="#0f1a0f">' + pOkD + '%</text>'
+    + '<text x="' + cx + '" y="' + (cy+10) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#7a8c7a">al día</text>';
+  document.getElementById('donut-legend').innerHTML =
+    '<div class="donut-legend-row"><div class="donut-dot" style="background:#1a7a4a"></div><div class="donut-legend-label">Al día (0-1d)</div><div class="donut-legend-val">' + pOkD + '%</div></div>'
+    + '<div class="donut-legend-row"><div class="donut-dot" style="background:#d97706"></div><div class="donut-legend-label">Atención (2d)</div><div class="donut-legend-val">' + pWarnD + '%</div></div>'
+    + '<div class="donut-legend-row"><div class="donut-dot" style="background:#dc2626"></div><div class="donut-legend-label">Crítico (3+d)</div><div class="donut-legend-val">' + pCritD + '%</div></div>';
+
+  // Tabla unificada con sort
+  buildUnifiedRanking(muniArr);
+
+  // Scroll reveal con stagger
+  initReveal();
+}
+
+var sortMode = 'pct';
+
+function setSortMode(mode) {
+  sortMode = mode;
+  document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('sort-' + mode).classList.add('active');
+  buildDashboard();
+}
+
+function buildUnifiedRanking(muniArr) {
+  var posLabels = ['gold','silver','bronze'];
+
+  // Ordenar según sortMode
+  var sorted = muniArr.slice().sort(function(a, b) {
+    if (sortMode === 'pct')   return (b.data.ok/b.data.total) - (a.data.ok/a.data.total);
+    if (sortMode === 'crit')  return b.data.crit - a.data.crit;
+    return b.data.total - a.data.total;
+  });
+
+  var rows = '';
+  sorted.forEach(function(m, i) {
+    var t     = m.data.total;
+    var pct   = t > 0 ? (m.data.ok / t * 100) : 0;
+    var pOk   = t > 0 ? (m.data.ok   / t * 100) : 0;
+    var pWarn = t > 0 ? (m.data.warn  / t * 100) : 0;
+    var pCrit = t > 0 ? (m.data.crit  / t * 100) : 0;
+    var badgeClass = pct >= 80 ? 'good' : pct >= 60 ? 'mid' : 'bad';
+    var posClass   = posLabels[i] || 'plain';
+    var isActive   = dashFilter === m.name;
+
+    rows += '<tr class="unified-tr' + (isActive ? ' active-filter' : '') + '" onclick="setDashFilter(\'' + m.name + '\')">'
+      + '<td>'
+        + '<div class="medal-cell">'
+        + '<div class="medal ' + posClass + '">' + (i+1) + '</div>'
+        + '<div class="muni-name">Municipio ' + m.name + '</div>'
+        + '</div>'
+      + '</td>'
+      + '<td class="num-cell num-total">' + t.toLocaleString('es-UY') + '</td>'
+      + '<td class="num-cell num-ok">' + m.data.ok.toLocaleString('es-UY') + '</td>'
+      + '<td class="num-cell num-warn">' + m.data.warn.toLocaleString('es-UY') + '</td>'
+      + '<td class="num-cell num-crit">' + m.data.crit.toLocaleString('es-UY') + '</td>'
+      + '<td class="state-bar-cell">'
+        + '<div class="state-bar-track">'
+        + (pOk   > 0 ? '<div class="state-bar-seg" style="width:' + pOk.toFixed(1)   + '%;background:#1a7a4a"></div>' : '')
+        + (pWarn > 0 ? '<div class="state-bar-seg" style="width:' + pWarn.toFixed(1) + '%;background:#d97706"></div>' : '')
+        + (pCrit > 0 ? '<div class="state-bar-seg" style="width:' + pCrit.toFixed(1) + '%;background:#dc2626"></div>' : '')
+        + '</div>'
+      + '</td>'
+      + '<td class="pct-cell"><span class="pct-badge ' + badgeClass + '">' + pct.toFixed(1) + '%</span></td>'
+      + '</tr>';
+  });
+
+  document.getElementById('unified-ranking').innerHTML =
+    '<table class="unified-table">'
+    + '<thead><tr>'
+    + '<th>Municipio</th>'
+    + '<th class="right">Total</th>'
+    + '<th class="right" style="color:#1a7a4a">Al día</th>'
+    + '<th class="right" style="color:#d97706">Atención</th>'
+    + '<th class="right" style="color:#dc2626">Crítico</th>'
+    + '<th>Estado</th>'
+    + '<th class="right">Cumplimiento</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>';
+}
+
+function animateCount(id, target) {
+  var el = document.getElementById(id);
+  var start = 0;
+  var duration = 600;
+  var startTime = null;
+  el.classList.add('counting');
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var progress = Math.min((ts - startTime) / duration, 1);
+    var ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(ease * target).toLocaleString('es-UY');
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function initReveal() {
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+    });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('#view-dashboard .chart-card, #view-dashboard .kpi-card, #view-dashboard .worst-widget').forEach(function(el) {
+    el.classList.add('reveal');
+    observer.observe(el);
+  });
+}
+
+// ══ GEOLOCALIZACIÓN ══
+var userMarker = null;
+var nearestPanel = null;
+
+function locateMe() {
+  if (!navigator.geolocation) {
+    alert('Tu browser no soporta geolocalización');
+    return;
+  }
+  var btn = document.getElementById('geo-btn');
+  var label = document.getElementById('geo-label');
+  btn.classList.add('loading');
+  label.textContent = 'Buscando ubicación...';
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var lat = pos.coords.latitude;
+      var lng = pos.coords.longitude;
+      btn.classList.remove('loading');
+      btn.classList.add('located');
+      label.textContent = 'Ubicación activa';
+
+      // Marker del usuario
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          html: '<div style="width:16px;height:16px;background:#1d4ed8;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 3px rgba(29,78,216,0.3)"></div>',
+          className: '', iconSize: [16,16], iconAnchor: [8,8]
+        })
+      }).bindPopup('<strong>Tu ubicación</strong>').addTo(map);
+
+      map.setView([lat, lng], 15);
+      showNearest(lat, lng);
+    },
+    function(err) {
+      btn.classList.remove('loading');
+      label.textContent = 'Mostrar mi ubicación';
+      alert('No se pudo obtener la ubicación: ' + err.message);
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+function haversine(lat1, lng1, lat2, lng2) {
+  var R = 6371000;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLng = (lng2 - lng1) * Math.PI / 180;
+  var a = Math.sin(dLat/2) * Math.sin(dLat/2)
+        + Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180)
+        * Math.sin(dLng/2) * Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function formatDist(m) {
+  return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km';
+}
+
+function showNearest(lat, lng) {
+  var withDist = allData
+    .filter(function(r) { return r.latitud && r.longitud; })
+    .map(function(r) {
+      return {
+        row: r,
+        dist: haversine(lat, lng, parseFloat(r.latitud), parseFloat(r.longitud))
+      };
+    })
+    .sort(function(a,b) { return a.dist - b.dist })
+    .slice(0, 3);
+
+  var colors = ['#1a7a4a','#d97706','#dc2626'];
+  var html = '<div class="nearest-panel"><div class="nearest-title">📍 Los 3 más cercanos</div>';
+  withDist.forEach(function(item, i) {
+    var dias = parseInt(item.row.dias_sin_levantar) || 0;
+    var color = getColor(dias);
+    var diasLabel = dias === 0 ? 'hoy' : dias + 'd';
+    html += '<div class="nearest-item" onclick="flyToRow(' + item.row.latitud + ',' + item.row.longitud + ')">'
+      + '<div class="nearest-rank" style="background:' + (i===0?'#f59e0b':i===1?'#94a3b8':'#cd7f32') + '">' + (i+1) + '</div>'
+      + '<div class="nearest-info">'
+      + '<div class="nearest-circ">' + item.row.cod_recorrido + '</div>'
+      + '<div class="nearest-dist">' + formatDist(item.dist) + '</div>'
+      + '</div>'
+      + '<div class="nearest-dias" style="color:' + color + '">' + diasLabel + '</div>'
+      + '</div>';
+  });
+  html += '</div>';
+
+  var container = document.getElementById('nearest-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'nearest-container';
+    document.getElementById('geo-btn').insertAdjacentElement('afterend', container);
+  }
+  container.innerHTML = html;
+}
+
+function flyToRow(lat, lng) {
+  map.setView([parseFloat(lat), parseFloat(lng)], 17);
+}
+
+// ══ BUSCADOR DE DIRECCIÓN ══
+var searchTimer = null;
+var searchMarker = null;
+
+function onSearchInput() {
+  var val = document.getElementById('search-input').value.trim();
+  document.getElementById('search-clear').classList.toggle('hidden', val.length === 0);
+  clearTimeout(searchTimer);
+  if (val.length < 3) {
+    document.getElementById('search-results').classList.add('hidden');
+    return;
+  }
+  searchTimer = setTimeout(function() { doSearch(); }, 400);
+}
+
+function doSearch() {
+  var q = document.getElementById('search-input').value.trim();
+  if (q.length < 3) return;
+  var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=uy&q='
+    + encodeURIComponent(q + ', Montevideo');
+  fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'BasuraCeroMVD/1.0 (github.com/basuracero-mvd)' } })
+    .then(function(r) { return r.json(); })
+    .then(function(results) { showSearchResults(results); })
+    .catch(function() { document.getElementById('search-results').classList.add('hidden'); });
+}
+
+function showSearchResults(results) {
+  var container = document.getElementById('search-results');
+  if (!results || results.length === 0) {
+    container.innerHTML = '<div class="search-result-item">No se encontraron resultados</div>';
+    container.classList.remove('hidden');
+    return;
+  }
+  var html = '';
+  results.forEach(function(r) {
+    var name = r.display_name.replace(', Uruguay', '').replace(', Montevideo', '');
+    html += '<div class="search-result-item" onclick="selectResult(' + r.lat + ',' + r.lon + ',\'' + name.replace(/'/g,"\'") + '\')">'
+      + '<strong>' + name.split(',')[0] + '</strong>'
+      + name.split(',').slice(1, 3).join(',')
+      + '</div>';
+  });
+  container.innerHTML = html;
+  container.classList.remove('hidden');
+}
+
+function selectResult(lat, lon, name) {
+  document.getElementById('search-input').value = name;
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('search-clear').classList.remove('hidden');
+  if (searchMarker) map.removeLayer(searchMarker);
+  searchMarker = L.marker([lat, lon], {
+    icon: L.divIcon({
+      html: '<div style="width:14px;height:14px;background:#7c3aed;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>',
+      className: '', iconSize: [14,14], iconAnchor: [7,7]
+    })
+  }).bindPopup('<strong>' + name + '</strong>').addTo(map).openPopup();
+  map.setView([lat, lon], 16);
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').classList.add('hidden');
+  document.getElementById('search-clear').classList.add('hidden');
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+}
+
+// Cerrar resultados al hacer click afuera
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.search-box')) {
+    document.getElementById('search-results').classList.add('hidden');
+  }
+});
+function setBanner(ok, fecha) {
+  var banner = document.getElementById('data-banner');
+  var text   = document.getElementById('banner-text');
+  var time   = document.getElementById('banner-time');
+  if (ok) {
+    banner.className = 'data-banner';
+    text.textContent = '✅ Datos en tiempo real · Portal de Datos Abiertos de Montevideo';
+    time.textContent = fecha ? 'Actualizado: ' + fecha : '';
+  } else {
+    banner.className = 'data-banner error';
+    text.textContent = '⚠️ No se pudieron cargar los datos reales — mostrando datos de ejemplo';
+    time.textContent = '';
+  }
+}
+
+// ══ FETCH CON FALLBACK EN CASCADA ══
+function loadData() {
+  var attempts = [
+    // 1. Directo (funciona si estás en servidor o CKAN tiene CORS abierto)
+    { label: 'directo', url: CKAN_URL },
+    // 2. Proxy corsproxy.io
+    { label: 'corsproxy', url: 'https://corsproxy.io/?' + encodeURIComponent(CKAN_URL) },
+    // 3. Proxy allorigins
+    { label: 'allorigins', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(CKAN_URL) },
+  ];
+
+  function tryNext(index) {
+    if (index >= attempts.length) {
+      console.warn('Todos los intentos fallaron, usando datos de ejemplo');
+      useMock();
+      return;
+    }
+    var attempt = attempts[index];
+    console.log('Intentando:', attempt.label, attempt.url);
+
+
+    fetch(attempt.url)
+      .then(function(res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+      })
+      .then(function(csv) {
+        var data = parseCSV(csv);
+        if (!data || data.length < 5) throw new Error('CSV inválido o vacío');
+        // Verificar que tiene las columnas esperadas
+        if (!data[0].latitud && !data[0].dias_sin_levantar) throw new Error('Columnas incorrectas');
+        console.log('Datos cargados via', attempt.label, '— registros:', data.length);
+        // Distribución de dias_sin_levantar
+        var dist = { 0:0, 1:0, 2:0, '3-7':0, '8-30':0, '+30':0 };
+        data.forEach(function(r) {
+          var d = parseInt(r.dias_sin_levantar) || 0;
+          if (d === 0) dist[0]++;
+          else if (d === 1) dist[1]++;
+          else if (d === 2) dist[2]++;
+          else if (d <= 7) dist['3-7']++;
+          else if (d <= 30) dist['8-30']++;
+          else dist['+30']++;
+        });
+        console.log('Distribución dias_sin_levantar:', dist);
+        useRealData(data);
+      })
+      .catch(function(err) {
+        console.warn(attempt.label + ' falló:', err.message);
+        tryNext(index + 1);
+      });
+  }
+
+  tryNext(0);
+}
+
+function useRealData(data) {
+  allData = data;
+  usingRealData = true;
+  var fecha = data[0] && data[0].fecha_datos ? data[0].fecha_datos : '';
+  setBanner(true, fecha);
+  document.getElementById('sidebar-sub').textContent = 'Datos reales · ' + fecha;
+  renderMarkers(data);
+  document.getElementById('loading').classList.add('hidden');
+}
+
+function useMock() {
+  allData = getMockData();
+  usingRealData = false;
+  setBanner(false, '');
+  document.getElementById('sidebar-sub').textContent = 'Datos de ejemplo (CORS bloqueado localmente)';
+  renderMarkers(allData);
+  document.getElementById('loading').classList.add('hidden');
+}
+
+// ══ MOCK FALLBACK ══
+function getMockData() {
+  var circuits = ['A_DU_RM_CL_101','A_DU_RM_CL_102','B_DU_RM_CL_201','B_DU_RM_CL_202',
+    'C_DU_RM_CL_301','CH_DU_RM_CL_401','CH_DU_RM_CL_402','D_DU_RM_CL_501',
+    'E_DU_RM_CL_601','F_DU_RM_CL_701','G_DU_RM_CL_801'];
+  var points = [
+    [-34.9055,-56.1915],[-34.9080,-56.1850],[-34.8922,-56.1652],[-34.8856,-56.0931],
+    [-34.8845,-56.1423],[-34.9102,-56.1456],[-34.8967,-56.1234],[-34.9123,-56.1567],
+    [-34.8801,-56.0856],[-34.9045,-56.2012],[-34.8678,-56.1123],[-34.9234,-56.1678],
+    [-34.8750,-56.1780],[-34.9010,-56.1600],[-34.8900,-56.1300],[-34.8720,-56.1890],
+    [-34.9150,-56.1350],[-34.8850,-56.2050],[-34.9300,-56.1600],[-34.8600,-56.1500]
+  ];
+  var result = [];
+  var fecha = new Date().toISOString().slice(0,10) + ' 08:00';
+  points.forEach(function(pt, i) {
+    var dias = [0,0,0,1,1,2,3,5,0,0,1,0,2,0,4,1,0,3,0,1][i];
+    result.push({
+      fecha_datos: fecha,
+      cod_recorrido: circuits[i % circuits.length],
+      posicion: String(i + 1),
+      dias_sin_levantar: String(dias),
+      longitud: String(pt[1]),
+      latitud: String(pt[0])
+    });
+  });
+  return result;
+}
+
+// ══ GEOCODIFICACIÓN INVERSA ══
+var geocodeCache = {};
+
+function reverseGeocode(lat, lng, callback) {
+  var key = lat.toFixed(4) + ',' + lng.toFixed(4);
+  if (geocodeCache[key]) { callback(geocodeCache[key]); return; }
+  var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng
+    + '&zoom=18&addressdetails=1&accept-language=es';
+  fetch(url, { headers: { 'Accept-Language': 'es', 'User-Agent': 'BasuraCeroMVD/1.0 (github.com/basuracero-mvd)' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var addr = formatAddress(data);
+      geocodeCache[key] = addr;
+      callback(addr);
+    })
+    .catch(function() { callback('Dirección no disponible'); });
+}
+
+function formatAddress(data) {
+  if (!data || !data.address) return 'Dirección no disponible';
+  var a = data.address;
+  var road    = a.road || a.pedestrian || a.footway || '';
+  var number  = a.house_number || '';
+  var suburb  = a.suburb || a.neighbourhood || a.quarter || '';
+  var parts = [];
+  if (road)   parts.push(road + (number ? ' ' + number : ''));
+  if (suburb) parts.push(suburb);
+  return parts.length > 0 ? parts.join(', ') : (data.display_name || '').split(',').slice(0,2).join(',');
+}
+
+// ══ CAPA DE RECICLAJE ══
+var recycleLayer = null;
+var recycleLoaded = false;
+var recycleVisible = false;
+var RECYCLE_URL = 'https://datos-abiertos.montevideo.gub.uy/contenedores_reciclables.zip';
+
+function toggleRecycleLayer() {
+  var btn = document.getElementById('recycle-btn');
+  if (recycleVisible && recycleLayer) {
+    map.removeLayer(recycleLayer);
+    recycleVisible = false;
+    btn.classList.remove('active');
+    document.getElementById('recycle-label').textContent = 'Mostrar reciclaje seco';
+    document.getElementById('recycle-status').textContent = '';
+    return;
+  }
+  if (recycleLoaded && recycleLayer) {
+    recycleLayer.addTo(map);
+    recycleVisible = true;
+    btn.classList.add('active');
+    document.getElementById('recycle-label').textContent = 'Ocultar reciclaje seco';
+    return;
+  }
+  // Primera vez: cargar datos
+  btn.classList.add('loading');
+  document.getElementById('recycle-label').textContent = 'Cargando...';
+  document.getElementById('recycle-status').textContent = '';
+  loadRecycleData();
+}
+
+function loadRecycleData() {
+  var proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(RECYCLE_URL),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(RECYCLE_URL)
+  ];
+
+  function tryProxy(i) {
+    if (i >= proxies.length) { recycleError(); return; }
+    fetch(proxies[i])
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      .then(function(buf) { return JSZip.loadAsync(buf); })
+      .then(function(zip) {
+        var csvFile = Object.keys(zip.files).find(function(n) { return n.toLowerCase().endsWith('.csv'); });
+        if (!csvFile) throw new Error('No CSV en ZIP');
+        return zip.files[csvFile].async('string');
+      })
+      .then(function(csv) {
+        var rows = Papa.parse(csv, { header: true, skipEmptyLines: true }).data;
+        console.log('Reciclaje cargado:', rows.length, 'puntos');
+        buildRecycleLayer(rows);
+      })
+      .catch(function(err) {
+        console.warn('Proxy reciclaje falló:', err.message);
+        tryProxy(i + 1);
+      });
+  }
+  tryProxy(0);
+}
+
+function utmToLatLng(x, y) {
+  // Conversión UTM Zone 21S (SIRGAS2000 ≈ WGS84) → lat/lng
+  // Usando proj4
+  var result = proj4('+proj=utm +zone=21 +south +datum=WGS84 +units=m +no_defs', 'WGS84', [x, y]);
+  return { lat: result[1], lng: result[0] };
+}
+
+function buildRecycleLayer(rows) {
+  recycleLayer = L.layerGroup();
+  var count = 0;
+  rows.forEach(function(r) {
+    var x = parseFloat(r['THE_GEOM.SDO_POINT.X'] || r['x'] || r['X']);
+    var y = parseFloat(r['THE_GEOM.SDO_POINT.Y'] || r['y'] || r['Y']);
+    if (isNaN(x) || isNaN(y)) return;
+    var coords = utmToLatLng(x, y);
+    if (isNaN(coords.lat) || isNaN(coords.lng)) return;
+    var nombre = r['NOMBRE'] || r['nombre'] || 'Punto de reciclaje';
+    var tipo   = r['TIPO_LOCAL_SEL_DOM'] || r['tipo_local_sel_dom'] || '';
+    var m = L.circleMarker([coords.lat, coords.lng], {
+      radius: 7, fillColor: '#1d4ed8', color: '#fff',
+      weight: 2, opacity: 1, fillOpacity: 0.9
+    }).bindPopup(
+      '<div class="popup-box">'
+      + '<div class="popup-head"><span class="popup-circuit">♻️ Reciclaje Seco</span><span class="pill pill-blue">CKAN</span></div>'
+      + '<div class="popup-row"><strong>Local:</strong> ' + nombre + '</div>'
+      + (tipo ? '<div class="popup-row"><strong>Tipo:</strong> ' + tipo + '</div>' : '')
+      + '<a class="popup-wpp" href="https://wa.me/59892250260" target="_blank" rel="noopener">📢 Reportar problema → 092 250 260</a>'
+      + '</div>',
+      { maxWidth: 260 }
+    );
+    recycleLayer.addLayer(m);
+    count++;
+  });
+
+  recycleLoaded = true;
+  recycleVisible = true;
+  recycleLayer.addTo(map);
+
+  var btn = document.getElementById('recycle-btn');
+  btn.classList.remove('loading');
+  btn.classList.add('active');
+  document.getElementById('recycle-label').textContent = 'Ocultar reciclaje seco';
+  document.getElementById('recycle-status').textContent = count + ' pts';
+}
+
+function recycleError() {
+  var btn = document.getElementById('recycle-btn');
+  btn.classList.remove('loading');
+  document.getElementById('recycle-label').textContent = 'Mostrar reciclaje seco';
+  document.getElementById('recycle-status').textContent = 'Error';
+  alert('No se pudo cargar la capa de reciclaje. Intentá desde un servidor (Live Server).');
+}
+
+// ══ NAVEGACIÓN ══
+function showView(view) {
+  ['map','dashboard','reportar'].forEach(function(v) {
+    document.getElementById('view-' + v).classList.toggle('hidden', v !== view);
+    document.getElementById('btn-' + v).classList.toggle('active', v === view);
+  });
+  if (view === 'map') setTimeout(function() { map.invalidateSize(); }, 50);
+  if (view === 'dashboard' && allData.length > 0) buildDashboard();
+}
+
+// ══ ARRANCAR: carga scripts en orden garantizado ══
+function loadScript(url, onok, onerr) {
+  var s = document.createElement('script');
+  s.src = url;
+  s.onload = onok;
+  s.onerror = onerr || onok;
+  document.body.appendChild(s);
+}
+
+loadScript(
+  'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js',
+  function() {
+    loadScript(
+      'https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js',
+      function() {
+        loadScript(
+          'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js',
+          function() {
+            loadScript(
+              'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+              function() {
+                loadScript(
+                  'https://cdn.jsdelivr.net/npm/proj4@2.9.0/dist/proj4.js',
+                  function() {
+                    initMap();
+                    loadData();
+                  }
+                );
+              }
+            );
+          }
+        );
+      }
+    );
+  }
+);
+</script>
+</body>
+</html>
