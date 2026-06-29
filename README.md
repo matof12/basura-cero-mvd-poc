@@ -1,6 +1,6 @@
 # BasuraCero MVD — Proof of Concept
 
-🔗 **Demo en vivo:** https://TU-USUARIO.github.io/basura-cero-mvd-poc
+🔗 **Demo en vivo:** https://matof12.github.io/basura-cero-mvd-poc
 
 Prototipo funcional desarrollado como validación de idea 
 antes de la implementación en React + TypeScript.
@@ -40,4 +40,4 @@ La implementación completa en React + TypeScript + Node.js está en desarrollo.
 
 ---
 
-*Iniciativa ciudadana independiente. No afiliada con la Intendencia de Montevideo.*
+*Iniciativa ciudadana independiente.*
