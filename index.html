@@ -190,9 +190,9 @@
   .worst-icon { font-size: 2.5rem; flex-shrink: 0; }
   .worst-label { font-size: 0.78rem; color: var(--ink-mid); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
   .worst-num { font-family: 'DM Mono', monospace; font-size: 2.5rem; font-weight: 500; color: var(--red); line-height: 1; }
-  .worst-right { text-align: right; }
-  .worst-circuit { font-family: 'DM Mono', monospace; font-size: 0.9rem; font-weight: 500; color: var(--ink); margin: 4px 0; }
-  .worst-days { font-size: 1.4rem; font-weight: 800; font-family: 'Sora', sans-serif; color: var(--red); }
+  .worst-right { text-align: right; min-width: 0; overflow: hidden; }
+  .worst-circuit { font-family: 'DM Mono', monospace; font-size: 0.85rem; font-weight: 500; color: var(--ink); margin: 4px 0; word-break: break-word; }
+  .worst-days { font-size: 1.2rem; font-weight: 800; font-family: 'Sora', sans-serif; color: var(--red); word-break: break-word; }
 
   /* UNIFIED RANKING TABLE */
   .chart-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -436,15 +436,101 @@
   .ranking-pct { font-family: 'DM Mono', monospace; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; min-width: 42px; text-align: right; }
 
   @media (max-width: 768px) {
+    /* HEADER */
     .header-inner { height: auto; padding: 10px 16px; flex-wrap: wrap; }
     .nav { width: 100%; justify-content: center; }
     .nav-btn span { display: none; }
+    .data-banner { flex-direction: column; gap: 4px; text-align: center; font-size: 0.72rem; }
+
+    /* MAP — sidebar arriba compacta, mapa abajo */
     .view-map { flex-direction: column; height: auto; }
-    .map-sidebar { width: 100%; max-height: 320px; }
-    .map-wrap { height: 55vh; }
+
+    .map-sidebar {
+      width: 100%;
+      max-height: none;
+      overflow-y: visible;
+      padding: 12px 16px;
+      gap: 12px;
+      border-right: none;
+      border-bottom: 1.5px solid var(--border);
+    }
+
+    /* Stats: scroll horizontal en mobile */
+    .stat-row {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      gap: 10px;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .stat-row::-webkit-scrollbar { display: none; }
+    .stat-box {
+      flex: 0 0 90px;
+      min-width: 90px;
+    }
+
+    /* Chips: scroll horizontal */
+    .filter-chips {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+    }
+    .filter-chips::-webkit-scrollbar { display: none; }
+    .chip { flex-shrink: 0; }
+
+    /* Leyenda: más compacta */
+    .legend-list { gap: 6px; }
+    .legend-row { font-size: 0.75rem; }
+
+    /* Buscador y geolocate */
+    .geo-btn { padding: 8px 12px; font-size: 0.82rem; }
+
+    /* Mapa: altura fija después de la sidebar */
+    .map-wrap { height: 60vh; }
+
+    /* DASHBOARD */
+    .view-dashboard { padding: 16px; gap: 20px; }
+    .dash-hero h2 { font-size: 1.4rem; }
     .charts-grid { grid-template-columns: 1fr; }
     .chart-card.full { grid-column: 1; }
-    .data-banner { flex-direction: column; gap: 4px; text-align: center; }
+    .kpi-row { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .kpi-val { font-size: 1.6rem; }
+
+    /* Worst widget: stack vertical en mobile */
+    .worst-widget {
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+    }
+    .worst-right { text-align: left; }
+    .worst-num { font-size: 2rem; }
+    .worst-days { font-size: 1.1rem; }
+
+    /* Unified ranking: scroll horizontal */
+    #unified-ranking { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .unified-table { min-width: 560px; }
+
+    /* Sort controls: scroll horizontal */
+    .chart-card-header { flex-direction: column; gap: 10px; }
+    .sort-controls { overflow-x: auto; -webkit-overflow-scrolling: touch; flex-wrap: nowrap; }
+    .sort-btn { flex-shrink: 0; }
+
+    /* Donut: más compacto */
+    .donut-wrap { flex-direction: column; align-items: flex-start; gap: 16px; }
+
+    /* NEAREST */
+    #nearest-container { margin-top: 8px; }
+
+    /* REPORTAR */
+    .view-reportar { padding: 24px 16px; }
+    .report-header h2 { font-size: 1.4rem; }
+    .wpp-card { padding: 20px 16px; }
+    .wpp-number { font-size: 1.4rem; }
+    .wpp-btn { padding: 12px 20px; font-size: 0.9rem; }
   }
 </style>
 </head>
@@ -461,7 +547,7 @@
   <!-- HEADER -->
   <header class="header">
     <div class="header-inner">
-      <a class="brand" href="#">
+      <a class="brand" href="#" onclick="showView('map'); return false;">
         <div class="brand-icon">🗑️</div>
         <div>
           <div class="brand-name">BasuraCero MVD</div>
@@ -538,7 +624,7 @@
           <div class="filter-chips" id="status-chips">
             <button class="chip active" onclick="filterStatus('all',this)">Todos</button>
             <button class="chip" onclick="filterStatus('ok',this)">Al día</button>
-            <button class="chip ch-amber" onclick="filterStatus('warn',this)">1-2 días</button>
+            <button class="chip ch-amber" onclick="filterStatus('warn',this)">2 días</button>
             <button class="chip ch-red" onclick="filterStatus('crit',this)">3+ días</button>
           </div>
         </div>
@@ -709,14 +795,14 @@ function getMunicipality(cod) {
 }
 
 function pillHtml(dias) {
-  if (dias === 0)  return '<span class="pill pill-green">Al día</span>';
-  if (dias <= 2)   return '<span class="pill pill-amber">' + dias + ' días</span>';
+  if (dias <= 1) return '<span class="pill pill-green">' + (dias === 0 ? 'Hoy' : 'Ayer') + '</span>';
+  if (dias <= 2) return '<span class="pill pill-amber">' + dias + ' días</span>';
   return '<span class="pill pill-red">' + dias + ' días</span>';
 }
 
 function diasClass(dias) {
-  if (dias === 0) return 'ok';
-  if (dias <= 2)  return 'warn';
+  if (dias <= 1) return 'ok';
+  if (dias <= 2) return 'warn';
   return 'crit';
 }
 
